@@ -1,145 +1,343 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Microsoft Word Clone</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.0.3/docx.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; padding: 20px; }
-        .toolbar { margin-bottom: 10px; }
-        button, select, input { margin: 5px; padding: 8px; border-radius: 5px; cursor: pointer; }
-        #editor { width: 80%; margin: auto; padding: 10px; background: white; min-height: 500px; border: 1px solid black; overflow: auto; text-align: left; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid black; padding: 5px; text-align: center; word-wrap: break-word; overflow: hidden; }
-        img { max-width: 100%; height: auto; }
-    </style>
+<title>Word Editor</title>
+<style>
+body {
+    font-family: sans-serif;
+}
+#editor-container {
+    width: 210mm; /* A4 width */
+    min-height: 297mm; /* A4 height - allows for expanding content */
+    border: 1px solid #ccc;
+    padding: 10mm; /* Add some padding */
+    box-sizing: border-box; /* Include padding in width/height */
+    overflow: hidden; /* Prevent content from overflowing */
+    position: relative; /* For absolute positioning of elements */
+    background-color: white; /* Simulate paper */
+}
+
+.page {
+    width: 100%;
+    min-height: 297mm; /* A4 height */
+    box-sizing: border-box;
+    padding: 20px; /* Adjust padding as needed */
+    page-break-after: always; /* Force page break */
+    position: relative; /* For positioning elements within the page */
+}
+
+.page:last-of-type {
+    page-break-after: avoid; /* Prevent extra page break after last page */
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%; /* Table takes full width */
+}
+
+td, th {
+    border: 1px solid black;
+    padding: 8px;
+    box-sizing: border-box; /* Include padding in cell width/height */
+    word-wrap: break-word; /* Wrap text within cells */
+    min-width: 50px; /* Minimum width to avoid collapsing */
+    vertical-align: top; /* Align text to top of cell by default */
+}
+
+img {
+    max-width: 100%;
+    max-height: 100%;
+    cursor: pointer; /* Indicate resizability */
+}
+
+.resizing {
+    border: 2px dashed blue; /* Visual feedback during resize */
+}
+
+/* Styles for toolbar buttons (customize as needed) */
+button {
+    padding: 5px 10px;
+    margin: 2px;
+}
+#image-upload {
+    display: none;
+}
+</style>
 </head>
 <body>
 
-    <h2>Microsoft Word Clone</h2>
+<h1>Word Editor</h1>
 
-    <div class="toolbar">
-        <button onclick="document.execCommand('bold')">Bold</button>
-        <button onclick="document.execCommand('italic')">Italic</button>
-        <input type="color" onchange="document.execCommand('foreColor', false, this.value)">
-        <select onchange="document.execCommand('fontSize', false, this.value)">
-            <option value="1">8px</option>
-            <option value="2">10px</option>
-            <option value="3">12px</option>
-            <option value="4">14px</option>
-            <option value="5">18px</option>
-            <option value="6">24px</option>
-            <option value="7">36px</option>
-        </select>
-        <button onclick="document.execCommand('undo')">Undo</button>
-        <button onclick="document.execCommand('redo')">Redo</button>
-        <button onclick="document.execCommand('cut')">Cut</button>
-        <button onclick="document.execCommand('copy')">Copy</button>
-        <button onclick="document.execCommand('paste')">Paste</button>
-        <button onclick="document.execCommand('insertUnorderedList')">Bullet</button>
-        <button onclick="document.execCommand('insertOrderedList')">Numbering</button>
-        <button onclick="document.execCommand('justifyLeft')">Left</button>
-        <button onclick="document.execCommand('justifyCenter')">Center</button>
-        <button onclick="document.execCommand('justifyRight')">Right</button>
-        <button onclick="document.execCommand('justifyFull')">Justify</button>
-        <button onclick="insertTable()">Insert Table</button>
-        <button onclick="insertImage()">Insert Image</button>
-        <button onclick="exportToPDF('portrait')">Save as PDF (Portrait)</button>
-        <button onclick="exportToPDF('landscape')">Save as PDF (Landscape)</button>
-        <button onclick="exportToDocx()">Save as DOCX</button>
-    </div>
+<div id="toolbar">
+    <button id="new-button">New</button>
+    <button id="open-button">Open</button>
+    <button id="save-pdf-button">Save PDF</button>
+    <button id="save-docx-button">Save DOCX</button>
+    <button id="undo-button">Undo</button>
+    <button id="redo-button">Redo</button>
+    <button id="bold-button">Bold</button>
+    <button id="italic-button">Italic</button>
+    <button id="color-button">Color</button>
+    <button id="image-button">Insert Image</button>
+    <input type="file" id="image-upload" accept="image/*">
+    <button id="table-button">Insert Table</button>
+    <label for="rows">Rows:</label><input type="number" id="rows" value="3">
+    <label for="cols">Cols:</label><input type="number" id="cols" value="3">
+    <button id="bullet-button">Bullet</button>
+    <button id="numbering-button">Numbering</button>
+    <button id="align-left">Align Left</button>
+    <button id="align-center">Align Center</button>
+    <button id="align-right">Align Right</button>
+    <button id="cut-button">Cut</button>
+    <button id="copy-button">Copy</button>
+    <button id="paste-button">Paste</button>
+    <label for="font-size">Font Size:</label>
+    <select id="font-size">
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="12">12</option>
+         <option value="14">14</option>
+        <option value="16">16</option>
+         <option value="18">18</option>
+        <option value="20">20</option>
+         <option value="24">24</option>
+        <option value="30">30</option>
+         <option value="36">36</option>
+        <option value="48">48</option>
+         <option value="72">72</option>
+    </select>
+</div>
 
-    <div id="editor" contenteditable="true"></div>
+<div id="editor-container">
+    <div class="page" contenteditable="true"></div> </div>
 
-    <script>
-        function insertTable() {
-            let rows = prompt("Enter number of rows:");
-            let cols = prompt("Enter number of columns:");
-            if (rows > 0 && cols > 0) {
-                let table = "<table>";
-                for (let i = 0; i < rows; i++) {
-                    table += "<tr>";
-                    for (let j = 0; j < cols; j++) {
-                        table += "<td contenteditable='true'></td>";
-                    }
-                    table += "</tr>";
-                }
-                table += "</table>";
-                document.execCommand('insertHTML', false, table);
-            } else {
-                alert("Invalid input!");
-            }
+<script>
+const editorContainer = document.getElementById('editor-container');
+const newButton = document.getElementById('new-button');
+const openButton = document.getElementById('open-button');
+const savePdfButton = document.getElementById('save-pdf-button');
+const saveDocxButton = document.getElementById('save-docx-button');
+const undoButton = document.getElementById('undo-button');
+const redoButton = document.getElementById('redo-button');
+const boldButton = document.getElementById('bold-button');
+const italicButton = document.getElementById('italic-button');
+const colorButton = document.getElementById('color-button');
+const imageButton = document.getElementById('image-button');
+const imageUpload = document.getElementById('image-upload');
+const tableButton = document.getElementById('table-button');
+const rowsInput = document.getElementById('rows');
+const colsInput = document.getElementById('cols');
+const bulletButton = document.getElementById('bullet-button');
+const numberingButton = document.getElementById('numbering-button');
+const alignLeftButton = document.getElementById('align-left');
+const alignCenterButton = document.getElementById('align-center');
+const alignRightButton = document.getElementById('align-right');
+const cutButton = document.getElementById('cut-button');
+const copyButton = document.getElementById('copy-button');
+const pasteButton = document.getElementById('paste-button');
+const fontSizeSelect = document.getElementById('font-size');
+
+let currentPage = editorContainer.querySelector('.page');
+let isResizing = false;
+let currentImg = null;
+let offsetX, offsetY;
+
+// Function to add a new page
+function addNewPage() {
+    const newPage = document.createElement('div');
+    newPage.classList.add('page');
+    newPage.contentEditable = true;
+    editorContainer.appendChild(newPage);
+    currentPage = newPage; // Update current page
+}
+
+// Event listener for content change to add new pages dynamically
+editorContainer.addEventListener('input', () => {
+    // Check if the current page is empty and there are other pages
+    if (currentPage.textContent.trim() === "" && editorContainer.children.length > 1) {
+        // If current page is empty and not the first page, remove it
+        if(currentPage !== editorContainer.firstChild){
+            editorContainer.removeChild(currentPage);
+            currentPage = editorContainer.lastChild; // Set current page to the last one
         }
+    }
+    // Check if content exceeds current page height
+    if (currentPage.scrollHeight > currentPage.clientHeight) {
+        addNewPage();
+    }
+});
 
-        function insertImage() {
-            let input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-            input.onchange = function () {
-                let file = input.files[0];
-                let reader = new FileReader();
-                reader.onload = function (e) {
-                    let img = `<img src="${e.target.result}" contenteditable="false" style="max-width:300px">`;
-                    document.execCommand('insertHTML', false, img);
-                };
-                reader.readAsDataURL(file);
-            };
-            input.click();
+
+
+// Function to insert a table
+function insertTable() {
+    const rows = rowsInput.value;
+    const cols = colsInput.value;
+    const table = document.createElement('table');
+
+    for (let i = 0; i < rows; i++) {
+        const row = table.insertRow();
+        for (let j = 0; j < cols; j++) {
+            const cell = row.insertCell();
+            cell.contentEditable = true; // Make cells editable
         }
+    }
+    const selection = window.getSelection();
+    if (selection) {
+        const range = selection.getRangeAt(0);
+        range.insertNode(table);
+    } else {
+        currentPage.appendChild(table);
+    }
+}
 
-        function exportToPDF(orientation) {
-            const { jsPDF } = window.jspdf;
-            let doc = new jsPDF({ orientation: orientation });
+// Function to insert an image
+function insertImage(src) {
+    const img = document.createElement('img');
+    img.src = src;
+    img.draggable = true;
+    img.addEventListener('mousedown', startResize);
+    img.addEventListener('mouseup', endResize);
 
-            let editor = document.getElementById("editor");
+    const selection = window.getSelection();
+    if (selection) {
+        const range = selection.getRangeAt(0);
+        range.insertNode(img);
+    } else {
+        currentPage.appendChild(img);
+    }
+}
 
-            html2canvas(editor).then(canvas => {
-                let imgData = canvas.toDataURL("image/png");
-                let imgWidth = orientation === "portrait" ? 210 : 297;
-                let imgHeight = (canvas.height * imgWidth) / canvas.width;
+function startResize(e) {
+    isResizing = true;
+    currentImg = e.target;
+    currentImg.classList.add('resizing');
+    offsetX = e.clientX - currentImg.offsetLeft;
+    offsetY = e.clientY - currentImg
+}
 
-                doc.addImage(imgData, "PNG", 10, 10, imgWidth - 20, imgHeight);
-                doc.save("Word_Document.pdf");
-            });
-        }
 
-        function exportToDocx() {
-            let { Document, Packer, Paragraph, TextRun } = window.docx;
-            let doc = new Document();
-            let editor = document.getElementById("editor");
+// ... (previous code)
 
-            let paragraphs = Array.from(editor.childNodes).map(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    return new Paragraph(new TextRun(node.textContent));
-                } else if (node.tagName === "TABLE") {
-                    let tableRows = Array.from(node.rows).map(row =>
-                        new TableRow({
-                            children: Array.from(row.cells).map(cell =>
-                                new TableCell({
-                                    children: [new Paragraph(cell.textContent)]
-                                })
-                            )
-                        })
-                    );
-                    return new Table({ rows: tableRows });
-                } else {
-                    return new Paragraph(new TextRun(node.innerText));
-                }
-            });
+function endResize() {
+    isResizing = false;
+    if (currentImg) {
+        currentImg.classList.remove('resizing');
+        currentImg = null;
+    }
+}
 
-            doc.addSection({ children: paragraphs });
+document.addEventListener('mousemove', (e) => {
+    if (isResizing && currentImg) {
+        const width = e.clientX - currentImg.offsetLeft;
+        const height = e.clientY - currentImg.offsetTop;
+        currentImg.style.width = width + 'px';
+        currentImg.style.height = height + 'px';
+    }
+});
 
-            Packer.toBlob(doc).then(blob => {
-                let link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.download = "Word_Document.docx";
-                link.click();
-            });
-        }
-    </script>
+// ... (previous code)
+
+tableButton.addEventListener('click', insertTable);
+
+imageButton.addEventListener('click', () => {
+    imageUpload.click();
+});
+
+imageUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        insertImage(e.target.result);
+    };
+    reader.readAsDataURL(file);
+});
+
+boldButton.addEventListener('click', () => {
+    document.execCommand('bold', false, null);
+});
+
+italicButton.addEventListener('click', () => {
+    document.execCommand('italic', false, null);
+});
+
+// Basic color picker (improve as needed)
+colorButton.addEventListener('click', () => {
+    const color = prompt("Enter color name or hex code:", "black");
+    document.execCommand('foreColor', false, color);
+});
+
+undoButton.addEventListener('click', () => {
+    document.execCommand('undo', false, null);
+});
+
+redoButton.addEventListener('click', () => {
+    document.execCommand('redo', false, null);
+});
+
+bulletButton.addEventListener('click', () => {
+    document.execCommand('insertUnorderedList', false, null);
+});
+
+numberingButton.addEventListener('click', () => {
+    document.execCommand('insertOrderedList', false, null);
+});
+
+alignLeftButton.addEventListener('click', () => {
+    document.execCommand('justifyLeft', false, null);
+});
+
+alignCenterButton.addEventListener('click', () => {
+    document.execCommand('justifyCenter', false, null);
+});
+
+alignRightButton.addEventListener('click', () => {
+    document.execCommand('justifyRight', false, null);
+});
+
+cutButton.addEventListener('click', () => {
+    document.execCommand('cut', false, null);
+});
+
+copyButton.addEventListener('click', () => {
+    document.execCommand('copy', false, null);
+});
+
+pasteButton.addEventListener('click', () => {
+    document.execCommand('paste', false, null);
+});
+
+fontSizeSelect.addEventListener('change', () => {
+    const size = fontSizeSelect.value;
+    document.execCommand('fontSize', false, size);
+});
+
+
+// ... (Save to PDF and DOCX will require additional libraries like jsPDF or a server-side solution)
+
+newButton.addEventListener('click', () => {
+    editorContainer.innerHTML = '<div class="page" contenteditable="true"></div>'; // Clear content and add a new page
+    currentPage = editorContainer.querySelector('.page'); // Reset current page
+});
+
+openButton.addEventListener('click', () => {
+    // Implement file opening logic (using FileReader or a library)
+    alert("Open functionality not yet implemented.");
+});
+
+
+savePdfButton.addEventListener('click', () => {
+    // Implement PDF save (jsPDF or server-side)
+    alert("Save PDF functionality not yet implemented.");
+});
+
+saveDocxButton.addEventListener('click', () => {
+    // Implement DOCX save (requires a library or server-side solution)
+    alert("Save DOCX functionality not yet implemented.");
+});
+
+
+</script>
 
 </body>
 </html>
